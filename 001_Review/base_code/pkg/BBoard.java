@@ -2,23 +2,47 @@ package pkg;
 import java.util.*;
 import java.io.*;
 
-public class BBoard {		// This is your main file that connects all classes.
+public class BBoard {
+	String deftitle;
+	ArrayList<Message> messages;
+	ArrayList<User> users;
+	User currentUser;
+
+
+	// This is your main file that connects all classes.
 	// Think about what your global variables need to be.
 
-	// Default constructor that creates a board with a defaulttitle, empty user and message lists,
+	// Default constructor that creates a board with a default title, empty user and message lists,
 	// and no current user
 	public BBoard() {
-		
+		deftitle = "Black Coffee";
+		messages = new ArrayList<>();
+		users = new ArrayList<>();
+
 	}
 
 	// Same as the default constructor except it sets the title of the board
-	public BBoard(String ttl) {	
+	public BBoard(String ttl) {
+		deftitle = ttl;
+		messages = new ArrayList<>();
+		users = new ArrayList<>();
+
 	}
 
 	// Gets a filename of a file that stores the user info in a given format (users.txt)
 	// Opens and reads the file of all authorized users and passwords
 	// Constructs a User object from each name/password pair, and populates the userList ArrayList.
 	public void loadUsers(String inputFile) throws FileNotFoundException {
+		Scanner input = new Scanner(new File(inputFile));
+			while(input.hasNextLine()) {
+				String line = input.nextLine();
+				String[] parts = line.split(" ");
+				String username = parts[0];
+				String password = parts[1];
+
+				User user = new User(username, password);
+				users.add(user);
+			}
 
 	}
 
@@ -26,9 +50,21 @@ public class BBoard {		// This is your main file that connects all classes.
 	// This function asks for a username and a password, then checks the userList ArrayList for a matching User.
 	// If a match is found, it sets currentUser to the identified User from the list
 	// If not, it will keep asking until a match is found or the user types 'q' or 'Q' as username to quit
-	// When the users chooses to quit, sayu "Bye!" and return from the login function
+	// When the users chooses to quit, say "Bye!" and return from the login function
 	public void login(){
+		Scanner input = new Scanner(System.in);
+		System.out.println("Please enter your username: ('Q' or 'q' to quit) ");
+		String username = input.nextLine();
+		System.out.println("Please enter your password: ");
+		String password = input.nextLine();
 
+		for(int i = 0; i < users.size(); i++){
+			if(username.equals(users.get(i).getUsername()) ){
+				if(users.get(i).check(username, password)){
+					currentUser = users.get(i);
+				}
+			}
+		}
 	}
 	
 	// Contains main loop of Bulletin Board
@@ -42,13 +78,51 @@ public class BBoard {		// This is your main file that connects all classes.
 	// Q/q should reset the currentUser to 0 and then end return
 	// Note: if login() did not set a valid currentUser, function must immediately return without showing menu
 	public void run(){
-
+		Scanner input = new Scanner(System.in);
+		login();
+		while(true){
+			if(currentUser == null){
+				return;
+			}
+			else {
+				System.out.println("Welcome " + currentUser.getUsername());
+				System.out.println("   - Display Messages ('D' or 'd' )");
+				System.out.println("   - Add new Topic ('N' or 'n' )");
+				System.out.println("   - Add new Reply to a Topic ('R' or 'r' )");
+				System.out.println("   - Change Password ('P' or 'p' )");
+				System.out.println("   - Quit ('Q' or 'q' )");
+				System.out.println("Choose an action: ");
+				String choice = input.nextLine();
+				if (choice.equalsIgnoreCase("d")) {
+					display();
+				}
+				if (choice.equalsIgnoreCase("n")) {
+					addTopic();
+				}
+				if (choice.equalsIgnoreCase("r")) {
+					addReply();
+				}
+				if (choice.equalsIgnoreCase("p")) {
+					setPassword();
+				}
+				if (choice.equalsIgnoreCase("q")) {
+					System.out.println("Bye!");
+					return;
+				}
+			}
+		}
 	}
 
 	// Traverse the BBoard's message list, and invote the print function on Topic objects ONLY
 	// It will then be the responsibility of the Topic object to invoke the print function recursively on its own replies
 	// The BBoard display function will ignore all reply objects in its message list
 	private void display(){
+		System.out.println("--------------------------------------");
+		for(int i =  0; i < messages.size(); i++){
+				messages.get(i).print(0);
+				System.out.println();
+			System.out.println("--------------------------------------");
+		}
 
 	}
 
@@ -68,6 +142,17 @@ public class BBoard {		// This is your main file that connects all classes.
 	// Once the Topic has been constructed, add it to the messageList
 	// This should invoke your inheritance of Topic to Message
 	private void addTopic(){
+		Scanner input = new Scanner(System.in);
+		int messageID = messages.size() + 1;
+		String username = currentUser.getUsername();
+
+		System.out.println("Subject: ");
+		String subject = input.nextLine();
+		System.out.println("Body: ");
+		String body = input.nextLine();
+
+		Topic topic = new Topic(username, subject, body, messageID);
+		messages.add(new Message(username, subject, body, messageID));
 
 	}
 
@@ -101,6 +186,29 @@ public class BBoard {		// This is your main file that connects all classes.
 	// Finally, push back the Message created to the BBoard's messageList. 
 	// Note: When the user chooses to return to the menu, do not call run() again - just return fro mthis addReply function. 
 	private void addReply(){
+		Scanner input = new Scanner(System.in);
+		int messageID = messages.size() + 1;
+		String username = currentUser.getUsername();
+
+		System.out.println("Enter Message ID (-1 for Menu): ");
+		int id = input.nextInt();
+		if(id == -1){
+			return;
+		}
+		else if(id <= 0 || id >= messages.size()+1){
+			addReply();
+		}
+		else{
+			System.out.println("Body: ");
+			String body = input.nextLine();
+			body = input.nextLine();
+			Message parentmessage = messages.get(id - 1);
+			String subject = "re: " + parentmessage.getSubject();
+			int newMessageID = messages.size() + 1;
+			Reply reply = new Reply(username, subject, body, newMessageID);
+			parentmessage.addChild(reply);
+			messages.add(reply);
+		}
 
 	}
 
@@ -112,7 +220,23 @@ public class BBoard {		// This is your main file that connects all classes.
 	// Any password is allowed except 'c' or 'C' for allowing the user to quit out to the menu. 
 	// Once entered, the user will be told "Password Accepted." and returned to the menu.
 	private void setPassword(){
-		
+		Scanner input = new Scanner(System.in);
+		System.out.println("Old Password ('c' or 'C' for Menu): ");
+		String oldPass = input.nextLine();
+		if(oldPass.equalsIgnoreCase("c")){
+
+		}
+		else{
+			if(oldPass.equalsIgnoreCase(currentUser.getUsername())){
+				System.out.println("Please enter your new password: ");
+				String newPass = input.nextLine();
+				if(currentUser.check(currentUser.getUsername(), newPass)){
+					currentUser.setPassword(oldPass, newPass);
+
+				}
+			}
+		}
+
 	}
 
 }
